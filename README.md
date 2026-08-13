@@ -1,154 +1,109 @@
-<div align="center">
+# git-secret-scanner
 
-# Reshath M
+A command-line tool that scans a codebase for accidentally committed secrets — API keys, tokens, passwords, private keys — using two complementary detection strategies: **known-format pattern matching** and **Shannon entropy analysis**.
 
-### <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=20&pause=1000&color=8A2BE2&center=true&vCenter=true&width=500&lines=Software+Engineer;AI+Engineer;Full-Stack+Developer" alt="Typing SVG" />
+Built as a portfolio project to explore how real secret-scanning tools (like GitHub's own push protection, TruffleHog, and Gitleaks) actually detect leaked credentials.
 
-![B.Tech](https://img.shields.io/badge/B.Tech-CSE%20Cyber%20Security-8A2BE2?style=for-the-badge)
-![Institute](https://img.shields.io/badge/SRM%20Institute-Science%20%26%20Technology-6A5ACD?style=for-the-badge)
-![CGPA](https://img.shields.io/badge/CGPA-8.6%20%2F%2010-8A2BE2?style=for-the-badge)
-
-📍 Chennai, Tamil Nadu, India
-
-[![Portfolio](https://img.shields.io/badge/Portfolio-Coming%20Soon-8A2BE2?style=for-the-badge&logo=vercel&logoColor=white)](#)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/reshath-m-314b59328)
-[![Email](https://img.shields.io/badge/Email-Contact-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:reshathm108@gmail.com)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/reshathm)
-
-![Profile Views](https://komarev.com/ghpvc/?username=reshathm&style=for-the-badge&color=8A2BE2&label=PROFILE+VIEWS)
-![Followers](https://img.shields.io/github/followers/reshathm?style=for-the-badge&color=8A2BE2&label=FOLLOWERS)
-
-</div>
+> **Status:** Week 1 complete — core detector working on local files. Git commit history scanning is in progress (see [Roadmap](#roadmap)).
 
 ---
 
-## About
+## Why two detection strategies?
 
-I'm a Computer Science student specializing in Cyber Security, currently building full-stack and AI-assisted projects with a focus on clean architecture and secure design. I enjoy working across the stack — from frontend interfaces to backend systems — and I'm actively growing my skills in AI/ML engineering alongside traditional software development.
+Most secrets fall into one of two categories, so the scanner uses a matching strategy for each:
 
-<div align="center">
+1. **Known-format secrets** — many providers issue keys with a fixed, documented shape. An AWS access key ID always starts with `AKIA` followed by 16 characters. A GitHub personal access token always starts with `ghp_`. These are easy and reliable to catch with regular expressions.
 
-![Open to](https://img.shields.io/badge/OPEN%20TO-Software%20Engineering%20Internships-8A2BE2?style=for-the-badge)
-![Open to](https://img.shields.io/badge/OPEN%20TO-AI%2FML%20Engineering-6A5ACD?style=for-the-badge)
-![Open to](https://img.shields.io/badge/OPEN%20TO-Full--Stack%20Development-8A2BE2?style=for-the-badge)
-![Open to](https://img.shields.io/badge/OPEN%20TO-Open%20Source%20Collaboration-6A5ACD?style=for-the-badge)
+2. **Unknown-format secrets** — a huge number of secrets (custom API keys, internal tokens, database passwords) have no fixed format at all. Regex can't catch what it doesn't have a pattern for. To catch these, the scanner measures the **Shannon entropy** of candidate strings — a measure of how "random" a string looks. Random secrets score high in entropy; normal English text and predictable strings (like `password123`) score low. Anything at or above **4.5 bits/character** is flagged as a candidate.
 
-</div>
+Combining both means the tool catches well-known secret formats *and* generic high-randomness strings that a pure regex tool would miss.
 
 ---
 
-## Tech Stack
+## How it works
 
-**Languages**
+```
+scanner.py          → walks the target directory, runs both detectors on every text file
+patterns.py          → regex definitions for known secret formats (AWS, Stripe, GitHub, Slack, private keys, generic key assignments)
+entropy.py            → Shannon entropy scoring for high-randomness strings
+test_samples/config.py → sample file with fake secrets, used to verify detection works
+```
 
-![Python](https://skillicons.dev/icons?i=python) ![JS](https://skillicons.dev/icons?i=js) ![TS](https://skillicons.dev/icons?i=ts) ![C++](https://skillicons.dev/icons?i=cpp) ![Java](https://skillicons.dev/icons?i=java)
-
-**Frontend**
-
-![HTML5](https://skillicons.dev/icons?i=html) ![CSS3](https://skillicons.dev/icons?i=css) ![React](https://skillicons.dev/icons?i=react) ![Next.js](https://skillicons.dev/icons?i=nextjs) ![Tailwind](https://skillicons.dev/icons?i=tailwind) ![Vite](https://skillicons.dev/icons?i=vite)
-
-**Backend & Databases**
-
-![Node.js](https://skillicons.dev/icons?i=nodejs) ![Express](https://skillicons.dev/icons?i=express) ![MongoDB](https://skillicons.dev/icons?i=mongodb) ![PostgreSQL](https://skillicons.dev/icons?i=postgres)
-
-**Cloud, DevOps & Tooling**
-
-![AWS](https://skillicons.dev/icons?i=aws) ![Git](https://skillicons.dev/icons?i=git) ![GitHub](https://skillicons.dev/icons?i=github) ![Ubuntu](https://skillicons.dev/icons?i=ubuntu) ![Linux](https://skillicons.dev/icons?i=linux) ![VSCode](https://skillicons.dev/icons?i=vscode)
+The scanner walks the target directory line by line, skipping noisy directories (`.git`, `node_modules`, `__pycache__`, virtual environments) and binary files (images, PDFs, zips, executables). Every line is checked against both detectors, and any matches are reported with the file, line number, detection method, and a **masked** version of the secret (first/last 4 characters only) — the tool never prints full secrets to the terminal, which mirrors how real security tools are expected to behave.
 
 ---
 
-## Featured Projects
+## Usage
 
-<details>
-<summary><b>🚀 Project 1 — add name here</b></summary>
-<br>
+```bash
+python scanner.py <path_to_scan>
+```
 
-One-line description of what it does and what you built it with.
+Example, scanning the included test fixtures:
 
-`Tech used` · [Repo Link](#) · [Live Demo](#)
+```bash
+python scanner.py test_samples/
+```
 
-</details>
+Example output:
 
-<details>
-<summary><b>🚀 Project 2 — add name here</b></summary>
-<br>
+```
+Found 4 potential secret(s):
 
-One-line description of what it does and what you built it with.
+[PATTERN] AWS Access Key ID
+  File: test_samples/config.py:4
+  Match: AKIA...MPLE
+  Detail: Starts with AKIA followed by 16 uppercase letters/digits
 
-`Tech used` · [Repo Link](#) · [Live Demo](#)
+[PATTERN] Stripe Live Secret Key
+  File: test_samples/config.py:6
+  Match: sk_l...FAKE
+  Detail: Stripe live secret key
 
-</details>
+[ENTROPY] High-entropy string
+  File: test_samples/config.py:7
+  Match: xK9!...3Nc
+  Detail: Shannon entropy score: 4.73
 
-<details>
-<summary><b>🚀 Project 3 — add name here</b></summary>
-<br>
+...
+```
 
-One-line description of what it does and what you built it with.
-
-`Tech used` · [Repo Link](#) · [Live Demo](#)
-
-</details>
-
-> *Pin your best repos on GitHub and they'll also show up automatically at the top of your profile.*
-
----
-
-## Experience
-
-<details>
-<summary><b>Click to expand</b></summary>
-<br>
-
-Currently focused on strengthening full-stack and AI/ML fundamentals through personal projects and coursework. Building toward real-world, production-style applications with an emphasis on secure design.
-
-- 🔨 Actively building and shipping personal projects
-- 📚 Deepening knowledge in AI-assisted development and secure coding practices
-- 🎯 Seeking internship/entry-level opportunities to apply these skills
-
-*(Update this section as you gain real experience — internships, freelance work, or open-source contributions all count.)*
-
-</details>
+Note that `DATABASE_PASSWORD = "hunter2"` in the test fixtures is **intentionally not flagged** — it's low-entropy and doesn't match any known secret format, which is the expected (and correct) behavior for a weak/predictable string.
 
 ---
 
-## Certifications
+## Design decisions
 
-![AWS](https://img.shields.io/badge/AWS-Certification-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
-![Google](https://img.shields.io/badge/Google-Certification-4285F4?style=for-the-badge&logo=google&logoColor=white)
-![Coursera](https://img.shields.io/badge/Coursera-Certificate-0056D2?style=for-the-badge&logo=coursera&logoColor=white)
-
-> *Placeholder badges — swap in exact certificate titles and credential links once you have them.*
+- **Masked output by default.** The scanner never prints a full secret, even one it just found — only the first and last 4 characters. This avoids the tool itself becoming a source of leaked credentials (e.g., in CI logs).
+- **Entropy threshold of 4.5 bits/char.** Typical English text scores roughly 3.5–4.5; random secrets typically score 4.5 and above. This threshold was chosen to catch random-looking strings while keeping false positives from ordinary text low.
+- **Combining regex and entropy, not just one.** Pattern matching alone misses custom/internal secret formats. Entropy alone produces too many false positives on things like hashes, UUIDs, or base64-encoded non-secret data. Using both together, with entropy as a fallback, balances precision and recall.
 
 ---
 
-## Coding Profiles
+## A bug I found and fixed
 
-[![LeetCode](https://img.shields.io/badge/LeetCode-reshathm-FFA116?style=for-the-badge&logo=leetcode&logoColor=white)](https://leetcode.com/u/reshathm/)
+Early versions of the entropy candidate pattern and the generic API key pattern only matched `[A-Za-z0-9+/=_-]`, which excluded common symbols like `!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`. A test secret containing symbols (`xK9!mQ2z#vL8pR4mYw7Bt3Nc`) was silently missed — the regex engine split it into smaller pieces at each symbol, and each piece was too short to trigger detection.
 
----
-
-## GitHub Analytics
-
-<div align="center">
-
-![GitHub Stats](https://github-readme-stats-eight-theta.vercel.app/api?username=reshathm&show_icons=true&theme=dark&hide_border=true&title_color=8A2BE2&icon_color=8A2BE2&text_color=ffffff&bg_color=0d1117)
-
-![GitHub Streak](https://github-readme-streak-stats.herokuapp.com/?user=reshathm&theme=dark&hide_border=true&background=0d1117&stroke=8A2BE2&ring=8A2BE2&fire=8A2BE2&currStreakLabel=ffffff)
-
-![Activity Graph](https://github-readme-activity-graph.vercel.app/graph?username=reshathm&theme=react-dark&hide_border=true&bg_color=0d1117&color=8A2BE2&line=8A2BE2&point=ffffff)
-
-</div>
-
-### Contribution Snake
-
-![Snake animation](https://raw.githubusercontent.com/reshathm/reshathm/output/github-contribution-grid-snake.svg)
-
-<sub>To make the snake animation work, set up the [Platane/snk](https://github.com/Platane/snk) GitHub Action in this repo — it generates and commits the SVG automatically on a schedule.</sub>
+Fixed by widening both character classes to include those symbols. This was a good reminder that testing against realistic secret formats (not just alphanumeric examples) is essential — a scanner that misses secrets because of what its own regex excludes is worse than one that's slightly noisy.
 
 ---
 
-<div align="center">
+## Roadmap
 
-**Thanks for visiting — feel free to reach out or check out my repositories below.**
+- [x] **Week 1** — Core detector: pattern matching + entropy analysis on local files
+- [ ] **Week 2** — Scan git commit history (not just current files), so secrets that were committed and later deleted are still caught, with commit hash and date reported
+- [ ] **Week 3** — Allowlist/ignore system to reduce false positives on test fixtures and known-safe strings; CLI output polish
+- [ ] **Week 4** — Unit tests, expanded documentation, write-up of lessons learned and future improvements
 
-</div>
+---
+
+## Requirements
+
+- Python 3.8+
+- No external dependencies for the current version (standard library only)
+
+---
+
+## Disclaimer
+
+This is a learning/portfolio project, not a production-grade security tool. For real-world secret scanning, consider established tools like [Gitleaks](https://github.com/gitleaks/gitleaks), [TruffleHog](https://github.com/trufflesecurity/trufflehog), or GitHub's built-in secret scanning.
