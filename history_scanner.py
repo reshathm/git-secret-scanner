@@ -17,6 +17,7 @@ import subprocess
 from patterns import SECRET_PATTERNS
 from entropy import find_high_entropy_strings
 from allowlist import load_ignore_rules, is_file_ignored, is_string_ignored
+from cli_output import print_summary, exit_code_for, colorize, YELLOW
 
 
 def run_git(repo_path: str, args: list[str]) -> str:
@@ -154,15 +155,11 @@ def scan_repo_history(repo_path: str):
 
 
 def print_findings(findings):
-    if not findings:
-        print("No secrets found in commit history.")
-        return
-
-    print(f"\nFound {len(findings)} potential secret(s) in commit history:\n")
+    print_summary(findings, context_label="secret(s) in commit history")
     for f in findings:
         matched = f["matched_text"]
         masked = matched[:4] + "..." + matched[-4:] if len(matched) > 10 else "****"
-        print(f"[{f['detection_method'].upper()}] {f['type']}")
+        print(colorize(f"[{f['detection_method'].upper()}] {f['type']}", YELLOW))
         print(f"  Commit: {f['commit']}  ({f['date']})  \"{f['message']}\"")
         print(f"  File: {f['file']}")
         print(f"  Match: {masked}")
@@ -181,3 +178,4 @@ if __name__ == "__main__":
 
     findings = scan_repo_history(target)
     print_findings(findings)
+    sys.exit(exit_code_for(findings))

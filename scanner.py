@@ -13,6 +13,7 @@ import os
 from patterns import SECRET_PATTERNS
 from entropy import find_high_entropy_strings
 from allowlist import load_ignore_rules, is_file_ignored, is_string_ignored
+from cli_output import print_summary, exit_code_for, colorize, YELLOW
 
 IGNORE_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
 IGNORE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".exe"}
@@ -79,14 +80,11 @@ def scan_directory(root_path: str):
 
 
 def print_findings(findings):
-    if not findings:
-        print("No secrets detected.")
-        return
-    print(f"\nFound {len(findings)} potential secret(s):\n")
+    print_summary(findings)
     for f in findings:
         masked = f["matched_text"][:4] + "..." + f["matched_text"][-4:] \
             if len(f["matched_text"]) > 10 else "****"
-        print(f"[{f['detection_method'].upper()}] {f['type']}")
+        print(colorize(f"[{f['detection_method'].upper()}] {f['type']}", YELLOW))
         print(f"  File: {f['file']}:{f['line']}")
         print(f"  Match: {masked}")
         print(f"  Detail: {f['detail']}\n")
@@ -102,3 +100,4 @@ if __name__ == "__main__":
         sys.exit(1)
     results = scan_directory(target)
     print_findings(results)
+    sys.exit(exit_code_for(results))
