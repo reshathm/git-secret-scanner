@@ -16,6 +16,7 @@ import subprocess
 
 from patterns import SECRET_PATTERNS
 from entropy import find_high_entropy_strings
+from allowlist import load_ignore_rules, is_file_ignored, is_string_ignored
 
 
 def run_git(repo_path: str, args: list[str]) -> str:
@@ -133,11 +134,16 @@ def scan_repo_history(repo_path: str):
     """
     all_findings = []
     commits = get_commit_list(repo_path)
+    file_patterns, ignored_strings = load_ignore_rules(repo_path)
 
     for commit_hash, date, message in commits:
         added_lines = get_added_lines(repo_path, commit_hash)
         for filename, line_text in added_lines:
+            if is_file_ignored(filename, file_patterns):
+                continue
             for finding in scan_line_for_secrets(line_text):
+                if is_string_ignored(finding["matched_text"], ignored_strings):
+                    continue
                 finding["commit"] = commit_hash[:8]  # short hash, easier to read
                 finding["date"] = date
                 finding["message"] = message
