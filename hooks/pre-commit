@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook for git-secret-scanner.
+# Blocks a commit if the scanner finds a secret in the STAGED version of
+# the files (i.e. what's actually about to be committed, not whatever
+# happens to be sitting unsaved in your editor).
+#
+# Installed via hooks/install.sh -- see that file for why this can't just
+# live directly in .git/hooks.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+SCAN_DIR="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$SCAN_DIR"
+}
+trap cleanup EXIT
+
+# Copy the STAGED version of every added/copied/modified file into a scratch
+# folder, preserving relative paths. This matters: if you `git add` a file
+# and then keep editing it, the scanner should check what you staged, not
+# what's currently on disk.
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED_FILES" ]; then
+  # Nothing staged (e.g. an empty commit) -- nothing to scan.
+  exit 0
+fi
+
+while IFS= read -r file; do
+  mkdir -p "$SCAN_DIR/$(dirname "$file")"
+  git show ":$file" > "$SCAN_DIR/$file" 2>/dev/null || true
+done <<< "$STAGED_FILES"
+
+# Run the real scanner against the staged snapshot.
+python3 "$REPO_ROOT/scanner.py" "$SCAN_DIR"
+SCAN_EXIT=$?
+
+if [ "$SCAN_EXIT" -ne 0 ]; then
+  echo ""
+  echo "Commit blocked: the secret scanner found something in your staged changes."
+  echo "Fix it, or if it's a false positive, add a rule to .secretscanignore and re-stage."
+  echo ""
+  exit 1
+fi
+
+exit 0

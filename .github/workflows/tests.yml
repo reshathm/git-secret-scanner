@@ -1,0 +1,32 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history, needed so history_scanner.py has something to scan
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python3 -m pip install --user pytest
+
+      - name: Run unit tests
+        run: python3 -m pytest tests/ -v
+
+      - name: Run the scanner against this repo's current files
+        run: python3 scanner.py .
+
+      - name: Run the scanner against this repo's commit history
+        run: python3 history_scanner.py .
